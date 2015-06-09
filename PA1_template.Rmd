@@ -1,25 +1,124 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
 output: 
-  html_document:
-    keep_md: true
+html_document:
+keep_md: true
 ---
 
 
 ## Loading and preprocessing the data
 
-
-
+First, we unzip data and load them into a data table _dt_:
+```{r}
+library(data.table)
+f <- unzip("activity.zip")
+dt <- data.table(read.csv(f))
+```
+The uncompressed file can be deleted:
+```{r}
+invisible(file.remove(f))
+```
+Let's look at the structure of the file:
+```{r}
+str(dt)
+```
+The _date_ column needs to be converted, since it is represented as factor
+```{r}
+dt$date <- as.Date(dt$date, format = "%Y-%m-%d")
+str(dt)
+```
 ## What is mean total number of steps taken per day?
 
-
+We need to group the rows by _date_ and compute the sum of each group.
+As specified in the assignment, we can ignore the _NA_ values. 
+Let's create a table _st_, containing this informaton, and rename the columns:
+```{r}
+st <- dt[!is.na(steps), sum(steps), by = date]
+setnames(st, c("date","sum.steps"))
+```
+Now, it is possible to plot an histogram of the total daily number of steps, and to show summary statistics, including mean and median:
+```{r}
+hist(st$sum.steps, xlab = "Daily number steps", ylab = "Frequency", col = 'red', main = "Distribution of the daily number of steps")
+summary(st$sum.steps)
+```
 
 ## What is the average daily activity pattern?
 
+First, we compute the mean of steps grouping the rows by _interval_, and save the result into the table _it_. 
+In order to understand better the time of the day of each 5-minute interval, we create the additional column _time_.
+Then, we rename the columns:
+```{r}
+it <- dt[!is.na(steps), mean(steps), by = interval]
+it$time <- paste(sprintf("%02d", it$interval %/% 100),":",sprintf("%02d", it$interval %% 100),sep="")
+it
+setnames(it, c("interval","avg.steps", "time"))
+```
 
+Now, it is possible to plot the time series. On the x-axis the time of day is shown, which is better readable than the identifier of the interval.
+```{r, fig.width=9}
+plot(it$interval, it$avg.steps, type = "l", xaxt="n", xlab = "Time", ylab = "Average number of steps")
+axis(1, at=it$interval[seq(1, length(it$interval), 24)], labels=it$time[seq(1, length(it$time), 24)])
+```
+Finally, the interval with the maximum number of steps can be found by selecting the row of _it_ with the maximum value of avg.steps:
+```{r}
+max <- it[which.max(avg.steps)]
+max
+```
+The interval number `r max$interval` has the maximum average number of steps (namely, `r max$avg.steps`) and corresponds to time `r max$time`.
+This is also well visible in the plot of the time series, shown above.
 
 ## Imputing missing values
 
+The _summary_ function can be used to show the number of _NA_ values inf _dt_:
+```{r}
+summary(dt)
+```
 
+As we can see, only the _steps_ column contains _NA_ values.
+We can set the missing number of steps as suggested by the assignment: for each row with missing numer of steps, we set the value as the average numer of steps in that interval.
+
+```{r}
+dt2 <- dt
+for (i in 1:nrow(dt2)) {
+    if (is.na(dt2[i, ]$steps)) {
+        #TODO: this is quite slow - check if it can be optimized
+        dt2[i, ]$steps <- as.integer(round(it[interval == dt2[i, ]$interval, ]$avg.steps))
+    }
+}
+```
+
+We can construct the histogram of the total number of daily steps as we did before, and show summary statistics, including mean and median:
+```{r}
+st2 <- dt2[, sum(steps), by = date]
+setnames(st2, c("date","sum.steps"))
+hist(st2$sum.steps, xlab = "Daily number steps", ylab = "Frequency", col = 'red', main = "Distribution of the daily number of steps")
+summary(st2$sum.steps)
+```
+
+The mean and the median of the distribution have not changed. In order to understand the reason why they did not change, we can analyze the distribution of the _NA_ values in the _dt_ table, w.r.t. the date:
+
+```{r}
+dtna <- dt[, sum(is.na(steps)), by = date]
+setnames(dtna, c("date", "na.count"))
+dtna[na.count>0]
+```
+
+As we can see, all the days with _NA_ values have 288 _NA_ values. Since 288 is the number of 5-minutes intervals in a day, in the initial distribution each day has either no _NA_ only or only _NA_ values. Therefore, replacing the number of steps with the average number of steps for each interval, clearly does not change how the daily total number of steps is distributed.
+Probably, a more effective way to replace _NA_ values would be replacing them with the average number of steps in the same interval of the same day of the week (this should work well if the subject who produced the readings usually does the same activities during the same days of the week).
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+First we create a factor variable _day.type_ with two levels: _weekday_ and _weekend_.
+```{r}
+dt$day.type <- as.factor(ifelse(weekdays(dt$date) %in% c("Sunday","Saturday"), "weekend", "weekday"))
+```
+
+Then, we can aggregate data by _interval_ and _day.type_, computing the mean of the number of steps, and, finally, it is possible to create a panel plot that allows to compare the time series of the average number of steps in the 5-minutes intervals of the weekdays and weekends.
+
+```{r}
+it2 <- aggregate(steps ~ interval + day.type, dt, mean)
+setnames(it2, c("interval","day.type","avg.steps"))
+library(lattice)
+xyplot(avg.steps ~ interval | day.type, data = it2, type = "l", xlab="5-minutes interval", ylab="Average number of steps", layout=c(1,2))
+```
+From the time series it can be observed that the subject typically starts walking earlier during he weekdays and walks more during the central hours of the weekends than during the same hours of the weekdays. This could be a clue that the subject wakes up early to go to work during the weekdays and tends to spend some time outside during the weekends.
