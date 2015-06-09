@@ -121,4 +121,5 @@ setnames(it2, c("interval","day.type","avg.steps"))
 library(lattice)
 xyplot(avg.steps ~ interval | day.type, data = it2, type = "l", xlab="5-minutes interval", ylab="Average number of steps", layout=c(1,2))
 ```
+
 From the time series it can be observed that the subject typically starts walking earlier during he weekdays and walks more during the central hours of the weekends than during the same hours of the weekdays. This could be a clue that the subject wakes up early to go to work during the weekdays and tends to spend some time outside during the weekends.

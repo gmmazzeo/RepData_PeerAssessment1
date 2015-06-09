@@ -12,14 +12,6 @@ First, we unzip data and load them into a data table _dt_:
 
 ```r
 library(data.table)
-```
-
-```
-## data.table 1.9.4  For help type: ?data.table
-## *** NB: by=.EACHI is now explicit. See README to restore previous behaviour.
-```
-
-```r
 f <- unzip("activity.zip")
 dt <- data.table(read.csv(f))
 ```
@@ -230,4 +222,5 @@ xyplot(avg.steps ~ interval | day.type, data = it2, type = "l", xlab="5-minutes 
 ```
 
 ![plot of chunk unnamed-chunk-15](figure/unnamed-chunk-15-1.png) 
+
 From the time series it can be observed that the subject typically starts walking earlier during he weekdays and walks more during the central hours of the weekends than during the same hours of the weekdays. This could be a clue that the subject wakes up early to go to work during the weekdays and tends to spend some time outside during the weekends.
